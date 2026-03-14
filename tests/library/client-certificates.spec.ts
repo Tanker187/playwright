@@ -46,7 +46,6 @@ const test = base.extend<TestOptions>({
           fs.readFileSync(asset('client-certificates/server/server_cert.pem')),
         ],
         requestCert: true,
-        rejectUnauthorized: false,
         allowHTTP1: options?.enableHTTP1FallbackWhenUsingHttp2,
       }, (req: (http2.Http2ServerRequest | http.IncomingMessage), res: http2.Http2ServerResponse | http.ServerResponse) => {
         const tlsSocket = req.socket as import('tls').TLSSocket;
