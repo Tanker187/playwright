@@ -134,6 +134,7 @@ export class TestInfoImpl implements TestInfo {
   errors: ipc.TestInfoErrorImpl[] = [];
   readonly _attachmentsPush: (...items: TestInfo['attachments']) => number;
   private _workerParams: ipc.WorkerInitParams;
+  private _ignoreTimeoutsCounter = 0;
 
   get error(): ipc.TestInfoErrorImpl | undefined {
     return this.errors[0];
@@ -200,8 +201,8 @@ export class TestInfoImpl implements TestInfo {
     this.expectedStatus = test?.expectedStatus ?? 'skipped';
 
     this._timeoutManager = new TimeoutManager(this.project.timeout);
-    if (configInternal.configCLIOverrides.debug)
-      this._setDebugMode();
+    if (configInternal.configCLIOverrides.debug === 'inspector')
+      this._setIgnoreTimeouts(true);
 
     this.outputDir = (() => {
       const relativeTestFilePath = path.relative(this.project.testDir, this._requireFile.replace(/\.(spec|test)\.(js|ts|jsx|tsx|mjs|mts|cjs|cts)$/, ''));
@@ -462,8 +463,9 @@ export class TestInfoImpl implements TestInfo {
     return ['beforeAll', 'afterAll', 'beforeEach', 'afterEach'].includes(type) ? type : undefined;
   }
 
-  _setDebugMode() {
-    this._timeoutManager.setIgnoreTimeouts();
+  _setIgnoreTimeouts(ignoreTimeouts: boolean) {
+    this._ignoreTimeoutsCounter += ignoreTimeouts ? 1 : -1;
+    this._timeoutManager.setIgnoreTimeouts(this._ignoreTimeoutsCounter > 0);
   }
 
   async _didFinishTestFunction() {

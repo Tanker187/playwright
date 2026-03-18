@@ -22,7 +22,7 @@ import { setBoxedStackPrefixes, createGuid, currentZone, debugMode, jsonStringif
 import { buildErrorContext } from './errorContext';
 import { currentTestInfo } from './common/globals';
 import { rootTestType } from './common/testType';
-import { createCustomMessageHandler, runDaemonForBrowser } from './mcp/test/browserBackend';
+import { createCustomMessageHandler, runDaemonForContext } from './mcp/test/browserBackend';
 
 import type { Fixtures, PlaywrightTestArgs, PlaywrightTestOptions, PlaywrightWorkerArgs, PlaywrightWorkerOptions, ScreenshotMode, TestInfo, TestType, VideoMode } from '../types/test';
 import type { ContextReuseMode } from './common/config';
@@ -237,7 +237,7 @@ const playwrightFixtures: Fixtures<TestFixtures, WorkerFixtures> = ({
     testInfo.snapshotSuffix = process.platform;
     testInfo._onCustomMessageCallback = () => Promise.reject(new Error('Only tests that use default Playwright context or page fixture support test_debug'));
     if (debugMode() === 'inspector')
-      (testInfo as TestInfoImpl)._setDebugMode();
+      (testInfo as TestInfoImpl)._setIgnoreTimeouts(true);
 
     playwright._defaultContextTimeout = actionTimeout || 0;
     playwright._defaultContextNavigationTimeout = navigationTimeout || 0;
@@ -256,6 +256,7 @@ const playwrightFixtures: Fixtures<TestFixtures, WorkerFixtures> = ({
     await artifactsRecorder.willStartTest(testInfo as TestInfoImpl);
 
     const tracingGroupSteps: TestStepInternal[] = [];
+    const pausedContexts = new Set<BrowserContextImpl>();
     const csiListener: ClientInstrumentationListener = {
       onApiCallBegin: (data, channel) => {
         const testInfo = currentTestInfo();
@@ -304,7 +305,7 @@ const playwrightFixtures: Fixtures<TestFixtures, WorkerFixtures> = ({
       },
       onWillPause: ({ keepTestTimeout }) => {
         if (!keepTestTimeout)
-          currentTestInfo()?._setDebugMode();
+          currentTestInfo()?._setIgnoreTimeouts(true);
       },
       runBeforeCreateBrowserContext: async (options: BrowserContextOptions) => {
         for (const [key, value] of Object.entries(_combinedContextOptions)) {
@@ -319,6 +320,17 @@ const playwrightFixtures: Fixtures<TestFixtures, WorkerFixtures> = ({
         }
       },
       runAfterCreateBrowserContext: async (context: BrowserContextImpl) => {
+        context.debugger.on('pausedstatechanged', () => {
+          const paused = context.debugger.pausedDetails().length > 0;
+          if (pausedContexts.has(context) && !paused) {
+            pausedContexts.delete(context);
+            (testInfo as TestInfoImpl)._setIgnoreTimeouts(false);
+          } else if (!pausedContexts.has(context) && paused) {
+            pausedContexts.add(context);
+            (testInfo as TestInfoImpl)._setIgnoreTimeouts(true);
+          }
+        });
+
         await artifactsRecorder.didCreateBrowserContext(context);
         const testInfo = currentTestInfo();
         if (testInfo)
@@ -432,7 +444,7 @@ const playwrightFixtures: Fixtures<TestFixtures, WorkerFixtures> = ({
     if (!_reuseContext) {
       const { context, close } = await _contextFactory();
       testInfo._onCustomMessageCallback = createCustomMessageHandler(testInfo, context);
-      testInfo._onDidFinishTestFunctionCallbacks.add(() => runDaemonForBrowser(testInfo, browser));
+      await runDaemonForContext(testInfo, context);
       await use(context);
       await close();
       return;
@@ -440,7 +452,7 @@ const playwrightFixtures: Fixtures<TestFixtures, WorkerFixtures> = ({
 
     const context = await browserImpl._wrapApiCall(() => browserImpl._newContextForReuse(), { internal: true });
     testInfo._onCustomMessageCallback = createCustomMessageHandler(testInfo, context);
-    testInfo._onDidFinishTestFunctionCallbacks.add(() => runDaemonForBrowser(testInfo, browser));
+    await runDaemonForContext(testInfo, context);
     await use(context);
     const closeReason = testInfo.status === 'timedOut' ? 'Test timeout of ' + testInfo.timeout + 'ms exceeded.' : 'Test ended.';
     await browserImpl._wrapApiCall(() => browserImpl._disconnectFromReusedContext(closeReason), { internal: true });

@@ -23,18 +23,15 @@ import crypto from 'crypto';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { createClientInfo, Registry, resolveSessionName } from './registry';
+import { createClientInfo, explicitSessionName, Registry, resolveSessionName } from './registry';
 import { Session, renderResolvedConfig } from './session';
 import { serverRegistry } from '../../serverRegistry';
+import { minimist } from './minimist';
 
 import type { Config } from '../mcp/config.d';
 import type { ClientInfo, SessionFile } from './registry';
 import type { BrowserDescriptor } from '../../serverRegistry';
-
-type MinimistArgs = {
-  _: string[];
-  [key: string]: any;
-};
+import type { MinimistArgs } from './minimist';
 
 type GlobalOptions = {
   help?: boolean;
@@ -43,6 +40,7 @@ type GlobalOptions = {
 };
 
 type OpenOptions = {
+  attach?: string;
   browser?: string;
   config?: string;
   extension?: boolean;
@@ -52,6 +50,7 @@ type OpenOptions = {
 };
 
 const globalOptions: (keyof (GlobalOptions & OpenOptions))[] = [
+  'attach',
   'browser',
   'config',
   'extension',
@@ -75,21 +74,7 @@ export async function program(options?: { embedderVersion?: string}) {
 
   const argv = process.argv.slice(2);
   const boolean = [...help.booleanOptions, ...booleanOptions];
-  const args: MinimistArgs = require('minimist')(argv, { boolean, string: ['_'] });
-  for (const [key, value] of Object.entries(args)) {
-    if (key !== '_' && typeof value !== 'boolean')
-      args[key] = String(value);
-  }
-  for (let index = 0; index < args._.length; index++)
-    args._[index] = String(args._[index]);
-  for (const option of boolean) {
-    if (!argv.includes(`--${option}`) && !argv.includes(`--no-${option}`))
-      delete args[option];
-    if (argv.some(arg => arg.startsWith(`--${option}=`) || arg.startsWith(`--no-${option}=`))) {
-      console.error(`boolean option '--${option}' should not be passed with '=value', use '--${option}' or '--no-${option}' instead`);
-      process.exit(1);
-    }
-  }
+  const args: MinimistArgs = minimist(argv, { boolean, string: ['_'] });
   // Normalize -s alias to --session
   if (args.s) {
     args.session = args.s;
@@ -121,11 +106,11 @@ export async function program(options?: { embedderVersion?: string}) {
   }
 
   const registry = await Registry.load();
-  const sessionName = resolveSessionName(args.session);
+  const sessionName = resolveSessionName(args.session as string);
 
   switch (commandName) {
     case 'list': {
-      await listSessions(registry, clientInfo, args.all);
+      await listSessions(registry, clientInfo, !!args.all);
       return;
     }
     case 'close-all': {
@@ -148,13 +133,15 @@ export async function program(options?: { embedderVersion?: string}) {
       return;
     }
     case 'open': {
-      const entry = registry.entry(clientInfo, sessionName);
-      if (entry)
-        await new Session(entry).stop(true);
-
-      await Session.startDaemon(clientInfo, args);
-      const newEntry = await registry.loadEntry(clientInfo, sessionName);
-      await runInSession(newEntry, clientInfo, args);
+      await startSession(sessionName, registry, clientInfo, args);
+      return;
+    }
+    case 'attach': {
+      const attachTarget = args._[1];
+      const attachSessionName = explicitSessionName(args.session as string) ?? attachTarget;
+      args.attach = attachTarget;
+      args.session = attachSessionName;
+      await startSession(attachSessionName, registry, clientInfo, args);
       return;
     }
     case 'close':
@@ -192,6 +179,16 @@ export async function program(options?: { embedderVersion?: string}) {
       await runInSession(entry, clientInfo, args);
     }
   }
+}
+
+async function startSession(sessionName: string, registry: Registry, clientInfo: ClientInfo, args: MinimistArgs) {
+  const entry = registry.entry(clientInfo, sessionName);
+  if (entry)
+    await new Session(entry).stop(true);
+
+  await Session.startDaemon(clientInfo, args);
+  const newEntry = await registry.loadEntry(clientInfo, sessionName);
+  await runInSession(newEntry, clientInfo, args);
 }
 
 async function runInSession(entry: SessionFile, clientInfo: ClientInfo, args: MinimistArgs) {
@@ -413,7 +410,7 @@ async function gcAndPrintBrowserSessions(workspace: string, list: BrowserDescrip
     text.push(`- browser "${descriptor.title}":`);
     text.push(`  - browser: ${descriptor.browser.browserName}`);
     text.push(`  - version: v${descriptor.playwrightVersion}`);
-    text.push(`  - run \`playwright-cli open --attach "${descriptor.title}"\` to attach`);
+    text.push(`  - run \`playwright-cli attach "${descriptor.title}"\` to attach`);
     console.log(text.join('\n'));
   }
 

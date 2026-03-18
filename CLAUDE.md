@@ -96,6 +96,8 @@ When creating or moving files, update the relevant `DEPS.list` to declare allowe
 
 ## Commit Convention
 
+Before committing, run `npm run flint` and fix errors.
+
 Semantic commit messages: `label(scope): description`
 
 Labels: `fix`, `feat`, `chore`, `docs`, `test`, `devops`
@@ -123,6 +125,7 @@ EOF
 ```
 
 Never add Co-Authored-By agents in commit message.
+Never add "Generated with" in commit message.
 Branch naming for issue fixes: `fix-<issue-number>`
 
 ## Development Guides

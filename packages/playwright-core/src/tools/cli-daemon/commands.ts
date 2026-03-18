@@ -55,10 +55,24 @@ const open = declareCommand({
     headed: z.boolean().optional().describe('Run browser in headed mode'),
     persistent: z.boolean().optional().describe('Use persistent browser profile'),
     profile: z.string().optional().describe('Use persistent browser profile, store profile in specified directory.'),
-    attach: z.string().optional().describe('Attach to a running Playwright browser by name or endpoint'),
   }),
   toolName: ({ url }) => url ? 'browser_navigate' : 'browser_snapshot',
   toolParams: ({ url }) => ({ url: url || 'about:blank' }),
+});
+
+const attach = declareCommand({
+  name: 'attach',
+  description: 'Attach to a running Playwright browser',
+  category: 'core',
+  args: z.object({
+    name: z.string().describe('Name or endpoint of the browser to attach to'),
+  }),
+  options: z.object({
+    config: z.string().optional().describe('Path to the configuration file, defaults to .playwright/cli.config.json'),
+    session: z.string().optional().describe('Session name alias (defaults to the attach target name)'),
+  }),
+  toolName: 'browser_snapshot',
+  toolParams: () => ({}),
 });
 
 const close = declareCommand({
@@ -198,11 +212,11 @@ const mouseWheel = declareCommand({
   description: 'Scroll mouse wheel',
   category: 'mouse',
   args: z.object({
-    dx: numberArg.describe('Y delta'),
-    dy: numberArg.describe('X delta'),
+    dx: numberArg.describe('X delta'),
+    dy: numberArg.describe('Y delta'),
   }),
   toolName: 'browser_mouse_wheel',
-  toolParams: ({ dx: deltaY, dy: deltaX }) => ({ deltaY, deltaX }),
+  toolParams: ({ dx: deltaX, dy: deltaY }) => ({ deltaX, deltaY }),
 });
 
 // Core
@@ -745,10 +759,13 @@ const networkRequests = declareCommand({
   args: z.object({}),
   options: z.object({
     static: z.boolean().optional().describe('Whether to include successful static resources like images, fonts, scripts, etc. Defaults to false.'),
+    ['request-body']: z.boolean().optional().describe('Whether to include request body. Defaults to false.'),
+    ['request-headers']: z.boolean().optional().describe('Whether to include request headers. Defaults to false.'),
+    filter: z.string().optional().describe('Only return requests whose URL matches this regexp (e.g. "/api/.*user").'),
     clear: z.boolean().optional().describe('Whether to clear the network list'),
   }),
   toolName: ({ clear }) => clear ? 'browser_network_clear' : 'browser_network_requests',
-  toolParams: ({ static: includeStatic, clear }) => clear ? ({}) : ({ includeStatic }),
+  toolParams: ({ static: s, 'request-body': requestBody, 'request-headers': requestHeaders, filter, clear }) => clear ? ({}) : ({ static: s, requestBody, requestHeaders, filter }),
 });
 
 const tracingStart = declareCommand({
@@ -796,6 +813,35 @@ const devtoolsShow = declareCommand({
   args: z.object({}),
   toolName: '',
   toolParams: () => ({}),
+});
+
+const resume = declareCommand({
+  name: 'resume',
+  description: 'Resume the test execution',
+  category: 'devtools',
+  args: z.object({}),
+  toolName: 'browser_resume',
+  toolParams: ({ step }) => ({ step }),
+});
+
+const stepOver = declareCommand({
+  name: 'step-over',
+  description: 'Step over the next call in the test',
+  category: 'devtools',
+  args: z.object({}),
+  toolName: 'browser_resume',
+  toolParams: ({}) => ({ step: true }),
+});
+
+const pauseAt = declareCommand({
+  name: 'pause-at',
+  description: 'Run the test up to a specific location and pause there',
+  category: 'devtools',
+  args: z.object({
+    location: z.string().describe('Location to pause at. Format is <file>:<line>, e.g. "example.spec.ts:42".'),
+  }),
+  toolName: 'browser_resume',
+  toolParams: ({ location }) => ({ location }),
 });
 
 // Sessions
@@ -888,6 +934,7 @@ const tray = declareCommand({
 const commandsArray: AnyCommandSchema[] = [
   // core category
   open,
+  attach,
   close,
   goto,
   type,
@@ -974,6 +1021,9 @@ const commandsArray: AnyCommandSchema[] = [
   videoStart,
   videoStop,
   devtoolsShow,
+  pauseAt,
+  resume,
+  stepOver,
 
   // session category
   sessionList,

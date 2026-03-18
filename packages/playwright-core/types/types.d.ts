@@ -4158,24 +4158,6 @@ export interface Page {
   routeWebSocket(url: string|RegExp|URLPattern|((url: URL) => boolean), handler: ((websocketroute: WebSocketRoute) => Promise<any>|any)): Promise<void>;
 
   /**
-   * Returns the [Screencast](https://playwright.dev/docs/api/class-screencast) object associated with this page.
-   *
-   * **Usage**
-   *
-   * ```js
-   * const screencast = page.screencast();
-   * screencast.on('screencastFrame', data => {
-   *   console.log('received frame, jpeg size:', data.length);
-   * });
-   * await screencast.start();
-   * // ... perform actions ...
-   * await screencast.stop();
-   * ```
-   *
-   */
-  screencast(): Screencast;
-
-  /**
    * Returns the buffer with the captured screenshot.
    * @param options
    */
@@ -4823,8 +4805,8 @@ export interface Page {
   /**
    * Video object associated with this page. Can be used to control video recording with
    * [video.start([options])](https://playwright.dev/docs/api/class-video#video-start) and
-   * [video.stop([options])](https://playwright.dev/docs/api/class-video#video-stop), or to access the video file when
-   * using the `recordVideo` context option.
+   * [video.stop()](https://playwright.dev/docs/api/class-video#video-stop), or to access the video file when using the
+   * `recordVideo` context option.
    */
   video(): Video;
 
@@ -5310,6 +5292,23 @@ export interface Page {
    * details.
    */
   request: APIRequestContext;
+
+  /**
+   * [Screencast](https://playwright.dev/docs/api/class-screencast) object associated with this page.
+   *
+   * **Usage**
+   *
+   * ```js
+   * page.screencast.on('screencastFrame', data => {
+   *   console.log('received frame, jpeg size:', data.length);
+   * });
+   * await page.screencast.start();
+   * // ... perform actions ...
+   * await page.screencast.stop();
+   * ```
+   *
+   */
+  screencast: Screencast;
 
   touchscreen: Touchscreen;
 
@@ -8324,6 +8323,12 @@ export interface BrowserContext {
      */
     behavior?: 'wait'|'ignoreErrors'|'default'
   }): Promise<void>;
+
+  /**
+   * Returns the context options that were used to create this browser context. The return type matches the options
+   * accepted by [browser.newContext([options])](https://playwright.dev/docs/api/class-browser#browser-new-context).
+   */
+  contextOptions(): BrowserContextOptions;
   /**
    * This event is not emitted.
    */
@@ -9751,6 +9756,12 @@ export interface Browser {
      */
     behavior?: 'wait'|'ignoreErrors'|'default'
   }): Promise<void>;
+
+  /**
+   * Returns the launch options that were used to launch this browser. The return type matches the options accepted by
+   * [browserType.launch([options])](https://playwright.dev/docs/api/class-browsertype#browser-type-launch).
+   */
+  launchOptions(): LaunchOptions;
   /**
    * Emitted when Browser gets disconnected from the browser application. This might happen because of one of the
    * following:
@@ -9841,12 +9852,6 @@ export interface Browser {
    * Indicates that the browser is connected.
    */
   isConnected(): boolean;
-
-  /**
-   * Returns the launch options that were used to launch this browser. The return type matches the options accepted by
-   * [browserType.launch([options])](https://playwright.dev/docs/api/class-browsertype#browser-type-launch).
-   */
-  launchOptions(): Object;
 
   /**
    * **NOTE** CDP Sessions are only supported on Chromium-based browsers.
@@ -21648,7 +21653,7 @@ export interface Screencast {
    * **Usage**
    *
    * ```js
-   * const screencast = page.screencast();
+   * const screencast = page.screencast;
    * screencast.on('screencastframe', ({ data, width, height }) => {
    *   console.log(`frame ${width}x${height}, jpeg size: ${data.length}`);
    *   require('fs').writeFileSync('frame.jpg', data);
@@ -21682,7 +21687,7 @@ export interface Screencast {
    * **Usage**
    *
    * ```js
-   * const screencast = page.screencast();
+   * const screencast = page.screencast;
    * screencast.on('screencastframe', ({ data, width, height }) => {
    *   console.log(`frame ${width}x${height}, jpeg size: ${data.length}`);
    *   require('fs').writeFileSync('frame.jpg', data);
@@ -21726,7 +21731,7 @@ export interface Screencast {
    * **Usage**
    *
    * ```js
-   * const screencast = page.screencast();
+   * const screencast = page.screencast;
    * screencast.on('screencastframe', ({ data, width, height }) => {
    *   console.log(`frame ${width}x${height}, jpeg size: ${data.length}`);
    *   require('fs').writeFileSync('frame.jpg', data);
@@ -21752,7 +21757,7 @@ export interface Screencast {
    * **Usage**
    *
    * ```js
-   * const screencast = page.screencast();
+   * const screencast = page.screencast;
    * screencast.on('screencastframe', ({ data, width, height }) => {
    *   console.log(`frame ${width}x${height}, size: ${data.length}`);
    * });
@@ -21779,7 +21784,7 @@ export interface Screencast {
        */
       height: number;
     };
-  }): Promise<void>;
+  }): Promise<Disposable>;
 
   /**
    * Stops the screencast started with
@@ -21958,7 +21963,7 @@ export interface Tracing {
 
       column?: number;
     };
-  }): Promise<void>;
+  }): Promise<Disposable>;
 
   /**
    * Closes the last group created by
@@ -22111,13 +22116,13 @@ export interface Tracing {
  * ```
  *
  * Alternatively, you can use [video.start([options])](https://playwright.dev/docs/api/class-video#video-start) and
- * [video.stop([options])](https://playwright.dev/docs/api/class-video#video-stop) to record video manually. This
- * approach is mutually exclusive with the `recordVideo` option.
+ * [video.stop()](https://playwright.dev/docs/api/class-video#video-stop) to record video manually. This approach is
+ * mutually exclusive with the `recordVideo` option.
  *
  * ```js
- * await page.video().start();
+ * await page.video().start({ path: 'video.webm' });
  * // ... perform actions ...
- * await page.video().stop({ path: 'video.webm' });
+ * await page.video().stop();
  * ```
  *
  */
@@ -22146,14 +22151,19 @@ export interface Video {
    * **Usage**
    *
    * ```js
-   * await page.video().start();
+   * await page.video().start({ path: 'video.webm' });
    * // ... perform actions ...
-   * await page.video().stop({ path: 'video.webm' });
+   * await page.video().stop();
    * ```
    *
    * @param options
    */
   start(options?: {
+    /**
+     * Path where the video should be saved when the recording is stopped.
+     */
+    path?: string;
+
     /**
      * Optional dimensions of the recorded video. If not specified the size will be equal to page viewport scaled down to
      * fit into 800x800. Actual picture of the page will be scaled down if necessary to fit the specified size.
@@ -22169,19 +22179,13 @@ export interface Video {
        */
       height: number;
     };
-  }): Promise<void>;
+  }): Promise<Disposable>;
 
   /**
    * Stops video recording started with
    * [video.start([options])](https://playwright.dev/docs/api/class-video#video-start).
-   * @param options
    */
-  stop(options?: {
-    /**
-     * Path where the video should be saved.
-     */
-    path?: string;
-  }): Promise<void>;
+  stop(): Promise<void>;
 }
 
 /**
