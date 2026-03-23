@@ -28,13 +28,14 @@ const snapshot = defineTool({
     inputSchema: z.object({
       filename: z.string().optional().describe('Save snapshot to markdown file instead of returning it in the response.'),
       selector: z.string().optional().describe('Element selector of the root element to capture a partial snapshot instead of the whole page'),
+      depth: z.number().optional().describe('Limit the depth of the snapshot tree'),
     }),
     type: 'readOnly',
   },
 
   handle: async (context, params, response) => {
     await context.ensureTab();
-    response.setIncludeFullSnapshot(params.filename, params.selector);
+    response.setIncludeFullSnapshot(params.filename, params.selector, params.depth);
   },
 });
 
@@ -134,9 +135,7 @@ const hover = defineTabTool({
     const { locator, resolved } = await tab.refLocator(params);
     response.addCode(`await page.${resolved}.hover();`);
 
-    await tab.waitForCompletion(async () => {
-      await locator.hover(tab.actionTimeoutOptions);
-    });
+    await locator.hover(tab.actionTimeoutOptions);
   },
 });
 
@@ -160,9 +159,7 @@ const selectOption = defineTabTool({
     const { locator, resolved } = await tab.refLocator(params);
     response.addCode(`await page.${resolved}.selectOption(${formatObject(params.values)});`);
 
-    await tab.waitForCompletion(async () => {
-      await locator.selectOption(params.values, tab.actionTimeoutOptions);
-    });
+    await locator.selectOption(params.values, tab.actionTimeoutOptions);
   },
 });
 

@@ -1027,6 +1027,9 @@ export type BrowserTypeLaunchPersistentContextParams = {
       width: number,
       height: number,
     },
+    annotate?: {
+      delay?: number,
+    },
   },
   strictSelectors?: boolean,
   serviceWorkers?: 'allow' | 'block',
@@ -1109,6 +1112,9 @@ export type BrowserTypeLaunchPersistentContextOptions = {
     size?: {
       width: number,
       height: number,
+    },
+    annotate?: {
+      delay?: number,
     },
   },
   strictSelectors?: boolean,
@@ -1261,6 +1267,9 @@ export type BrowserNewContextParams = {
       width: number,
       height: number,
     },
+    annotate?: {
+      delay?: number,
+    },
   },
   strictSelectors?: boolean,
   serviceWorkers?: 'allow' | 'block',
@@ -1328,6 +1337,9 @@ export type BrowserNewContextOptions = {
     size?: {
       width: number,
       height: number,
+    },
+    annotate?: {
+      delay?: number,
     },
   },
   strictSelectors?: boolean,
@@ -1400,6 +1412,9 @@ export type BrowserNewContextForReuseParams = {
       width: number,
       height: number,
     },
+    annotate?: {
+      delay?: number,
+    },
   },
   strictSelectors?: boolean,
   serviceWorkers?: 'allow' | 'block',
@@ -1467,6 +1482,9 @@ export type BrowserNewContextForReuseOptions = {
     size?: {
       width: number,
       height: number,
+    },
+    annotate?: {
+      delay?: number,
     },
   },
   strictSelectors?: boolean,
@@ -1602,6 +1620,9 @@ export type BrowserContextInitializer = {
       size?: {
         width: number,
         height: number,
+      },
+      annotate?: {
+        delay?: number,
       },
     },
     strictSelectors?: boolean,
@@ -2140,7 +2161,6 @@ export interface PageChannel extends PageEventTarget, EventTargetChannel {
   pageErrors(params: PagePageErrorsParams, progress?: Progress): Promise<PagePageErrorsResult>;
   pdf(params: PagePdfParams, progress?: Progress): Promise<PagePdfResult>;
   requests(params?: PageRequestsParams, progress?: Progress): Promise<PageRequestsResult>;
-  snapshotForAI(params: PageSnapshotForAIParams, progress?: Progress): Promise<PageSnapshotForAIResult>;
   startJSCoverage(params: PageStartJSCoverageParams, progress?: Progress): Promise<PageStartJSCoverageResult>;
   stopJSCoverage(params?: PageStopJSCoverageParams, progress?: Progress): Promise<PageStopJSCoverageResult>;
   startCSSCoverage(params: PageStartCSSCoverageParams, progress?: Progress): Promise<PageStartCSSCoverageResult>;
@@ -2610,19 +2630,6 @@ export type PageRequestsOptions = {};
 export type PageRequestsResult = {
   requests: RequestChannel[],
 };
-export type PageSnapshotForAIParams = {
-  track?: string,
-  selector?: string,
-  timeout: number,
-};
-export type PageSnapshotForAIOptions = {
-  track?: string,
-  selector?: string,
-};
-export type PageSnapshotForAIResult = {
-  full: string,
-  incremental?: string,
-};
 export type PageStartJSCoverageParams = {
   resetOnNavigation?: boolean,
   reportAnonymousScripts?: boolean,
@@ -2681,15 +2688,21 @@ export type PageCancelPickLocatorParams = {};
 export type PageCancelPickLocatorOptions = {};
 export type PageCancelPickLocatorResult = void;
 export type PageStartScreencastParams = {
-  maxSize?: {
+  preferredSize?: {
     width: number,
     height: number,
   },
+  annotate?: {
+    delay?: number,
+  },
 };
 export type PageStartScreencastOptions = {
-  maxSize?: {
+  preferredSize?: {
     width: number,
     height: number,
+  },
+  annotate?: {
+    delay?: number,
   },
 };
 export type PageStartScreencastResult = void;
@@ -2701,11 +2714,17 @@ export type PageVideoStartParams = {
     width: number,
     height: number,
   },
+  annotate?: {
+    delay?: number,
+  },
 };
 export type PageVideoStartOptions = {
   size?: {
     width: number,
     height: number,
+  },
+  annotate?: {
+    delay?: number,
   },
 };
 export type PageVideoStartResult = {
@@ -2871,11 +2890,17 @@ export type FrameAddStyleTagResult = {
   element: ElementHandleChannel,
 };
 export type FrameAriaSnapshotParams = {
-  selector: string,
+  mode?: 'ai' | 'default',
+  track?: string,
+  selector?: string,
+  depth?: number,
   timeout: number,
 };
 export type FrameAriaSnapshotOptions = {
-
+  mode?: 'ai' | 'default',
+  track?: string,
+  selector?: string,
+  depth?: number,
 };
 export type FrameAriaSnapshotResult = {
   snapshot: string,
@@ -4320,8 +4345,10 @@ export interface DebuggerEventTarget {
 }
 export interface DebuggerChannel extends DebuggerEventTarget, EventTargetChannel {
   _type_Debugger: boolean;
-  setPauseAt(params: DebuggerSetPauseAtParams, progress?: Progress): Promise<DebuggerSetPauseAtResult>;
+  pause(params?: DebuggerPauseParams, progress?: Progress): Promise<DebuggerPauseResult>;
   resume(params?: DebuggerResumeParams, progress?: Progress): Promise<DebuggerResumeResult>;
+  next(params?: DebuggerNextParams, progress?: Progress): Promise<DebuggerNextResult>;
+  runTo(params: DebuggerRunToParams, progress?: Progress): Promise<DebuggerRunToResult>;
 }
 export type DebuggerPausedStateChangedEvent = {
   pausedDetails: {
@@ -4333,26 +4360,26 @@ export type DebuggerPausedStateChangedEvent = {
     title: string,
   }[],
 };
-export type DebuggerSetPauseAtParams = {
-  next?: boolean,
-  location?: {
-    file: string,
-    line?: number,
-    column?: number,
-  },
-};
-export type DebuggerSetPauseAtOptions = {
-  next?: boolean,
-  location?: {
-    file: string,
-    line?: number,
-    column?: number,
-  },
-};
-export type DebuggerSetPauseAtResult = void;
+export type DebuggerPauseParams = {};
+export type DebuggerPauseOptions = {};
+export type DebuggerPauseResult = void;
 export type DebuggerResumeParams = {};
 export type DebuggerResumeOptions = {};
 export type DebuggerResumeResult = void;
+export type DebuggerNextParams = {};
+export type DebuggerNextOptions = {};
+export type DebuggerNextResult = void;
+export type DebuggerRunToParams = {
+  location: {
+    file: string,
+    line?: number,
+    column?: number,
+  },
+};
+export type DebuggerRunToOptions = {
+
+};
+export type DebuggerRunToResult = void;
 
 export interface DebuggerEvents {
   'pausedStateChanged': DebuggerPausedStateChangedEvent;
@@ -4633,6 +4660,9 @@ export type ElectronLaunchParams = {
       width: number,
       height: number,
     },
+    annotate?: {
+      delay?: number,
+    },
   },
   strictSelectors?: boolean,
   timezoneId?: string,
@@ -4668,6 +4698,9 @@ export type ElectronLaunchOptions = {
     size?: {
       width: number,
       height: number,
+    },
+    annotate?: {
+      delay?: number,
     },
   },
   strictSelectors?: boolean,
@@ -5056,6 +5089,9 @@ export type AndroidDeviceLaunchBrowserParams = {
       width: number,
       height: number,
     },
+    annotate?: {
+      delay?: number,
+    },
   },
   strictSelectors?: boolean,
   serviceWorkers?: 'allow' | 'block',
@@ -5121,6 +5157,9 @@ export type AndroidDeviceLaunchBrowserOptions = {
     size?: {
       width: number,
       height: number,
+    },
+    annotate?: {
+      delay?: number,
     },
   },
   strictSelectors?: boolean,

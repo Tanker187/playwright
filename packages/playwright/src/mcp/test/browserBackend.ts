@@ -98,7 +98,7 @@ async function generatePausedMessage(testInfo: TestInfoImpl, context: playwright
     lines.push(
         `- Page Snapshot:`,
         '```yaml',
-        (await page.snapshotForAI()).full,
+        await page.ariaSnapshot({ mode: 'ai' }),
         '```',
     );
   }
@@ -115,7 +115,7 @@ export async function runDaemonForContext(testInfo: TestInfoImpl, context: playw
     return false;
 
   const sessionName = `tw-${createGuid().slice(0, 6)}`;
-  await (context.browser() as Browser)._register(sessionName, { workspaceDir: testInfo.project.testDir });
+  await (context.browser() as Browser)!._register(sessionName, { workspaceDir: testInfo.project.testDir });
 
   /* eslint-disable-next-line no-console */
   console.log([
@@ -125,6 +125,6 @@ export async function runDaemonForContext(testInfo: TestInfoImpl, context: playw
     `- Run "playwright-cli attach ${sessionName}" to attach to this test`,
   ].join('\n'));
 
-  await context.debugger.setPauseAt({ next: true });
+  await context.debugger.pause();
   return true;
 }

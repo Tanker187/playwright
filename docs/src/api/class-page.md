@@ -717,7 +717,6 @@ Brings page to front (activates tab).
 
 ## async method: Page.cancelPickLocator
 * since: v1.59
-* langs: js
 
 Cancels an ongoing [`method: Page.pickLocator`] call by deactivating pick locator mode.
 If no pick locator mode is active, this method is a no-op.
@@ -2725,7 +2724,6 @@ Returns up to (currently) 200 last page errors from this page. See [`event: Page
 
 ### option: Page.pageErrors.filter
 * since: v1.59
-* langs: js
 - `filter` <[PageErrorsFilter]<"all"|"sinceNavigation">>
 
 Controls which errors are returned:
@@ -3036,7 +3034,6 @@ Whether or not to embed the document outline into the PDF. Defaults to `false`.
 
 ## async method: Page.pickLocator
 * since: v1.59
-* langs: js
 - returns: <[Locator]>
 
 Enters pick locator mode where hovering over page elements highlights them and shows the corresponding locator.
@@ -3047,6 +3044,26 @@ Once the user clicks an element, the mode is deactivated and the [Locator] for t
 ```js
 const locator = await page.pickLocator();
 console.log(locator);
+```
+
+```java
+Locator locator = page.pickLocator();
+System.out.println(locator);
+```
+
+```python async
+locator = await page.pick_locator()
+print(locator)
+```
+
+```python sync
+locator = page.pick_locator()
+print(locator)
+```
+
+```csharp
+var locator = await page.PickLocatorAsync();
+Console.WriteLine(locator);
 ```
 
 ## async method: Page.press
@@ -4211,26 +4228,29 @@ Page width in pixels.
 
 Page height in pixels.
 
-## async method: Page.snapshotForAI
+## async method: Page.ariaSnapshot
 * since: v1.59
-- returns: <[Object]>
-  - `full` <[string]> Full accessibility snapshot of the page.
-  - `incremental` ?<[string]> Incremental snapshot containing only changes since the last tracked snapshot, when using the [`option: Page.snapshotForAI.track`] option.
+- returns: <[string]>
 
-Returns an accessibility snapshot of the page optimized for AI consumption.
+Captures the aria snapshot of the page. Read more about [aria snapshots](../aria-snapshots.md).
 
-### option: Page.snapshotForAI.timeout = %%-input-timeout-%%
+### option: Page.ariaSnapshot.mode
+* since: v1.59
+- `mode` <[AriaSnapshotMode]<"ai"|"default">>
+
+When set to `"ai"`, returns a snapshot optimized for AI consumption with element references. Defaults to `"default"`.
+
+### option: Page.ariaSnapshot.timeout = %%-input-timeout-%%
 * since: v1.59
 
-### option: Page.snapshotForAI.timeout = %%-input-timeout-js-%%
+### option: Page.ariaSnapshot.timeout = %%-input-timeout-js-%%
 * since: v1.59
 
-### option: Page.snapshotForAI.track
+### option: Page.ariaSnapshot.depth
 * since: v1.59
-- `track` <[string]>
+- `depth` <[int]>
 
-When specified, enables incremental snapshots. Subsequent calls with the same track name will return
-an incremental snapshot containing only changes since the last call.
+When specified, limits the depth of the snapshot.
 
 ## async method: Page.tap
 * since: v1.8

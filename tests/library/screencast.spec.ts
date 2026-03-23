@@ -20,16 +20,14 @@ import { rafraf } from '../config/utils';
 test.skip(({ mode }) => mode !== 'default', 'screencast is not available in remote mode');
 test.skip(({ video }) => video === 'on', 'conflicts with built-in video recording');
 
-test('screencast.start emits screencastframe events', async ({ browser, server, trace }) => {
+test('screencast.start delivers frames via onFrame callback', async ({ browser, server, trace }) => {
   test.skip(trace === 'on', 'trace=on has different screencast image configuration');
   const context = await browser.newContext({ viewport: { width: 1000, height: 400 } });
   const page = await context.newPage();
 
-  const frames: { data: Buffer }[] = [];
-  page.screencast.on('screencastframe', frame => frames.push(frame));
-
-  const maxSize = { width: 500, height: 400 };
-  await page.screencast.start({ maxSize });
+  const frames: Buffer[] = [];
+  const preferredSize = { width: 500, height: 400 };
+  await page.screencast.start(({ data }) => frames.push(data), { preferredSize });
   await page.goto(server.EMPTY_PAGE);
   await page.evaluate(() => document.body.style.backgroundColor = 'red');
   await rafraf(page, 100);
@@ -38,9 +36,9 @@ test('screencast.start emits screencastframe events', async ({ browser, server, 
   expect(frames.length).toBeGreaterThan(0);
   for (const frame of frames) {
     // Each frame must be a valid JPEG (starts with FF D8)
-    expect(frame.data[0]).toBe(0xff);
-    expect(frame.data[1]).toBe(0xd8);
-    const { width, height } = jpegDimensions(frame.data);
+    expect(frame[0]).toBe(0xff);
+    expect(frame[1]).toBe(0xd8);
+    const { width, height } = jpegDimensions(frame);
     // Frame should be scaled down to fit the maximum size.
     expect(width).toBe(500);
     expect(height).toBe(200);
@@ -49,15 +47,12 @@ test('screencast.start emits screencastframe events', async ({ browser, server, 
   await context.close();
 });
 
-test('start throws if already running', async ({ browser, trace }) => {
-  test.skip(trace === 'on', 'trace=on enables screencast with different options');
-
-  const size = { width: 500, height: 400 };
-  const context = await browser.newContext({ viewport: size });
+test('start throws if screencast is already started', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 500, height: 400 } });
   const page = await context.newPage();
 
-  await page.screencast.start({ maxSize: size });
-  await expect(page.screencast.start({ maxSize: { width: 320, height: 240 } })).rejects.toThrow('Screencast is already running');
+  await page.screencast.start(() => {});
+  await expect(page.screencast.start(() => {})).rejects.toThrow('Screencast is already started');
 
   await page.screencast.stop();
   await context.close();
@@ -69,15 +64,15 @@ test('start allows restart with different options after stop', async ({ browser,
   const context = await browser.newContext({ viewport: { width: 500, height: 400 } });
   const page = await context.newPage();
 
-  await page.screencast.start({ maxSize: { width: 500, height: 400 } });
+  await page.screencast.start(() => {}, { preferredSize: { width: 500, height: 400 } });
   await page.screencast.stop();
   // Different options should succeed once the previous screencast is stopped.
-  await page.screencast.start({ maxSize: { width: 320, height: 240 } });
+  await page.screencast.start(() => {}, { preferredSize: { width: 320, height: 240 } });
   await page.screencast.stop();
   await context.close();
 });
 
-test('start throws when video recording is running with different params', async ({ browser, trace }) => {
+test('start reuses existing screencast when video recording is running', async ({ browser, server, trace }) => {
   test.skip(trace === 'on', 'trace=on enables screencast with different options');
 
   const videoSize = { width: 500, height: 400 };
@@ -85,43 +80,49 @@ test('start throws when video recording is running with different params', async
   const page = await context.newPage();
 
   await page.video().start({ size: videoSize });
-  await expect(page.screencast.start({ maxSize: { width: 320, height: 240 } })).rejects.toThrow('Screencast is already running with different options');
 
-  await page.video().stop();
-  await context.close();
-});
-
-test('screencast.start dispose stops screencast', async ({ browser, server, trace }) => {
-  test.skip(trace === 'on', 'trace=on has different screencast image configuration');
-  const context = await browser.newContext({ viewport: { width: 1000, height: 400 } });
-  const page = await context.newPage();
-
-  const frames: { data: Buffer }[] = [];
-  page.screencast.on('screencastframe', frame => frames.push(frame));
-
-  const disposable = await page.screencast.start({ maxSize: { width: 500, height: 400 } });
+  const frames: Buffer[] = [];
+  await page.screencast.start(({ data }) => frames.push(data), { preferredSize: { width: 320, height: 240 } });
   await page.goto(server.EMPTY_PAGE);
-  await page.evaluate(() => document.body.style.backgroundColor = 'red');
   await rafraf(page, 100);
-  await disposable.dispose();
+  await page.screencast.stop();
 
   expect(frames.length).toBeGreaterThan(0);
+  for (const frame of frames) {
+    // Each frame must be a valid JPEG (starts with FF D8)
+    expect(frame[0]).toBe(0xff);
+    expect(frame[1]).toBe(0xd8);
+    const { width, height } = jpegDimensions(frame);
+    // Frame should be scaled down to fit the maximum size.
+    expect(width).toBe(videoSize.width);
+    expect(height).toBe(videoSize.height);
+  }
+
+  await page.video().stop();
   await context.close();
 });
 
-test('video.start does not emit screencastframe events', async ({ page, server, trace }) => {
-  test.skip(trace === 'on', 'trace=on enables screencast frame events');
+test('start returns a disposable that stops screencast', async ({ browser, server, trace }) => {
+  test.skip(trace === 'on', 'trace=on has different screencast image configuration');
+  const context = await browser.newContext({ viewport: { width: 500, height: 400 } });
+  const page = await context.newPage();
 
-  const frames = [];
-  page.screencast.on('screencastframe', frame => frames.push(frame));
-
-  await page.video().start({ size: { width: 320, height: 240 } });
+  const frames: Buffer[] = [];
+  await page.screencast.start(({ data }) => frames.push(data), { preferredSize: { width: 500, height: 400 } });
   await page.goto(server.EMPTY_PAGE);
   await page.evaluate(() => document.body.style.backgroundColor = 'red');
   await rafraf(page, 100);
-  await page.video().stop();
+  await page.screencast.stop();
 
-  expect(frames).toHaveLength(0);
+  const frameCountAfterDispose = frames.length;
+  expect(frameCountAfterDispose).toBeGreaterThan(0);
+
+  // No more frames should arrive after dispose.
+  await page.evaluate(() => document.body.style.backgroundColor = 'blue');
+  await rafraf(page, 100);
+  expect(frames.length).toBe(frameCountAfterDispose);
+
+  await context.close();
 });
 
 function jpegDimensions(buffer: Buffer): { width: number, height: number } {
