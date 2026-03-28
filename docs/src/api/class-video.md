@@ -147,7 +147,9 @@ Optional dimensions of the recorded video. If not specified the size will be equ
 ### option: Video.start.annotate
 * since: v1.59
 - `annotate` ?<[Object]>
-  - `delay` ?<[int]> How long each annotation is displayed in milliseconds. Defaults to `500`.
+  - `duration` ?<[float]> How long each annotation is displayed in milliseconds. Defaults to `500`.
+  - `position` ?<[AnnotatePosition]<"top-left"|"top"|"top-right"|"bottom-left"|"bottom"|"bottom-right">> Position of the action title overlay. Defaults to `"top-right"`.
+  - `fontSize` ?<[int]> Font size of the action title in pixels. Defaults to `24`.
 
 If specified, enables visual annotations on interacted elements during video recording. Interacted elements are highlighted with a semi-transparent blue box and click points are shown as red circles.
 

@@ -1305,6 +1305,14 @@ export class InjectedScript {
     return this._highlight;
   }
 
+  private _ensureHighlight() {
+    if (!this._highlight) {
+      this._highlight = new Highlight(this);
+      this._highlight.install();
+    }
+    return this._highlight;
+  }
+
   highlight(selector: ParsedSelector) {
     if (!this._highlight) {
       this._highlight = new Highlight(this);
@@ -1313,9 +1321,15 @@ export class InjectedScript {
     this._highlight.runHighlightOnRaf(selector);
   }
 
-  annotate(annotation: { point?: channels.Point, box?: channels.Rect, title?: string, delay?: number }) {
-    const highlight = this._createHighlight();
-    const fadeDuration = annotation.delay ?? 500;
+  setScreencastAnnotation(annotation: { point?: channels.Point, box?: channels.Rect, actionTitle?: string, duration?: number, position?: string, fontSize?: number } | null) {
+    const highlight = this._ensureHighlight();
+    if (!annotation) {
+      highlight.updateHighlight([]);
+      highlight.hideActionPoint();
+      highlight.hideActionTitle();
+      return;
+    }
+    const fadeDuration = annotation.duration ?? 500;
 
     if (annotation.box) {
       highlight.updateHighlight([{
@@ -1327,8 +1341,28 @@ export class InjectedScript {
     }
     if (annotation.point)
       highlight.showActionPoint(annotation.point.x, annotation.point.y, fadeDuration);
-    if (annotation.title)
-      highlight.showSubtitle(annotation.title, fadeDuration);
+    if (annotation.actionTitle)
+      highlight.showActionTitle(annotation.actionTitle, fadeDuration, annotation.position, annotation.fontSize);
+  }
+
+  addUserOverlay(id: string, html: string) {
+    const highlight = this._ensureHighlight();
+    highlight.addUserOverlay(id, html);
+  }
+
+  getUserOverlay(id: string): HTMLElement | undefined {
+    const highlight = this._ensureHighlight();
+    return highlight.getUserOverlay(id);
+  }
+
+  removeUserOverlay(id: string) {
+    const highlight = this._ensureHighlight();
+    highlight.removeUserOverlay(id);
+  }
+
+  setUserOverlaysVisible(visible: boolean) {
+    const highlight = this._ensureHighlight();
+    highlight.setUserOverlaysVisible(visible);
   }
 
   hideHighlight() {

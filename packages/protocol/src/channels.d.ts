@@ -176,6 +176,12 @@ export type Rect = {
   height: number,
 };
 
+export type AnnotateOptions = {
+  duration?: number,
+  position?: 'top-left' | 'top' | 'top-right' | 'bottom-left' | 'bottom' | 'bottom-right',
+  fontSize?: number,
+};
+
 export type SerializedValue = {
   n?: number,
   b?: boolean,
@@ -1022,14 +1028,12 @@ export type BrowserTypeLaunchPersistentContextParams = {
   contrast?: 'no-preference' | 'more' | 'no-override',
   baseURL?: string,
   recordVideo?: {
-    dir: string,
+    dir?: string,
     size?: {
       width: number,
       height: number,
     },
-    annotate?: {
-      delay?: number,
-    },
+    annotate?: AnnotateOptions,
   },
   strictSelectors?: boolean,
   serviceWorkers?: 'allow' | 'block',
@@ -1108,14 +1112,12 @@ export type BrowserTypeLaunchPersistentContextOptions = {
   contrast?: 'no-preference' | 'more' | 'no-override',
   baseURL?: string,
   recordVideo?: {
-    dir: string,
+    dir?: string,
     size?: {
       width: number,
       height: number,
     },
-    annotate?: {
-      delay?: number,
-    },
+    annotate?: AnnotateOptions,
   },
   strictSelectors?: boolean,
   serviceWorkers?: 'allow' | 'block',
@@ -1262,14 +1264,12 @@ export type BrowserNewContextParams = {
   contrast?: 'no-preference' | 'more' | 'no-override',
   baseURL?: string,
   recordVideo?: {
-    dir: string,
+    dir?: string,
     size?: {
       width: number,
       height: number,
     },
-    annotate?: {
-      delay?: number,
-    },
+    annotate?: AnnotateOptions,
   },
   strictSelectors?: boolean,
   serviceWorkers?: 'allow' | 'block',
@@ -1333,14 +1333,12 @@ export type BrowserNewContextOptions = {
   contrast?: 'no-preference' | 'more' | 'no-override',
   baseURL?: string,
   recordVideo?: {
-    dir: string,
+    dir?: string,
     size?: {
       width: number,
       height: number,
     },
-    annotate?: {
-      delay?: number,
-    },
+    annotate?: AnnotateOptions,
   },
   strictSelectors?: boolean,
   serviceWorkers?: 'allow' | 'block',
@@ -1407,14 +1405,12 @@ export type BrowserNewContextForReuseParams = {
   contrast?: 'no-preference' | 'more' | 'no-override',
   baseURL?: string,
   recordVideo?: {
-    dir: string,
+    dir?: string,
     size?: {
       width: number,
       height: number,
     },
-    annotate?: {
-      delay?: number,
-    },
+    annotate?: AnnotateOptions,
   },
   strictSelectors?: boolean,
   serviceWorkers?: 'allow' | 'block',
@@ -1478,14 +1474,12 @@ export type BrowserNewContextForReuseOptions = {
   contrast?: 'no-preference' | 'more' | 'no-override',
   baseURL?: string,
   recordVideo?: {
-    dir: string,
+    dir?: string,
     size?: {
       width: number,
       height: number,
     },
-    annotate?: {
-      delay?: number,
-    },
+    annotate?: AnnotateOptions,
   },
   strictSelectors?: boolean,
   serviceWorkers?: 'allow' | 'block',
@@ -1616,14 +1610,12 @@ export type BrowserContextInitializer = {
     contrast?: 'no-preference' | 'more' | 'no-override',
     baseURL?: string,
     recordVideo?: {
-      dir: string,
+      dir?: string,
       size?: {
         width: number,
         height: number,
       },
-      annotate?: {
-        delay?: number,
-      },
+      annotate?: AnnotateOptions,
     },
     strictSelectors?: boolean,
     serviceWorkers?: 'allow' | 'block',
@@ -2168,6 +2160,10 @@ export interface PageChannel extends PageEventTarget, EventTargetChannel {
   bringToFront(params?: PageBringToFrontParams, progress?: Progress): Promise<PageBringToFrontResult>;
   pickLocator(params?: PagePickLocatorParams, progress?: Progress): Promise<PagePickLocatorResult>;
   cancelPickLocator(params?: PageCancelPickLocatorParams, progress?: Progress): Promise<PageCancelPickLocatorResult>;
+  overlayShow(params: PageOverlayShowParams, progress?: Progress): Promise<PageOverlayShowResult>;
+  overlayRemove(params: PageOverlayRemoveParams, progress?: Progress): Promise<PageOverlayRemoveResult>;
+  overlayChapter(params: PageOverlayChapterParams, progress?: Progress): Promise<PageOverlayChapterResult>;
+  overlaySetVisible(params: PageOverlaySetVisibleParams, progress?: Progress): Promise<PageOverlaySetVisibleResult>;
   startScreencast(params: PageStartScreencastParams, progress?: Progress): Promise<PageStartScreencastResult>;
   stopScreencast(params?: PageStopScreencastParams, progress?: Progress): Promise<PageStopScreencastResult>;
   videoStart(params: PageVideoStartParams, progress?: Progress): Promise<PageVideoStartResult>;
@@ -2687,22 +2683,50 @@ export type PagePickLocatorResult = {
 export type PageCancelPickLocatorParams = {};
 export type PageCancelPickLocatorOptions = {};
 export type PageCancelPickLocatorResult = void;
+export type PageOverlayShowParams = {
+  html: string,
+  duration?: number,
+};
+export type PageOverlayShowOptions = {
+  duration?: number,
+};
+export type PageOverlayShowResult = {
+  id: string,
+};
+export type PageOverlayRemoveParams = {
+  id: string,
+};
+export type PageOverlayRemoveOptions = {
+
+};
+export type PageOverlayRemoveResult = void;
+export type PageOverlayChapterParams = {
+  title: string,
+  description?: string,
+  duration?: number,
+};
+export type PageOverlayChapterOptions = {
+  description?: string,
+  duration?: number,
+};
+export type PageOverlayChapterResult = void;
+export type PageOverlaySetVisibleParams = {
+  visible: boolean,
+};
+export type PageOverlaySetVisibleOptions = {
+
+};
+export type PageOverlaySetVisibleResult = void;
 export type PageStartScreencastParams = {
   preferredSize?: {
     width: number,
     height: number,
-  },
-  annotate?: {
-    delay?: number,
   },
 };
 export type PageStartScreencastOptions = {
   preferredSize?: {
     width: number,
     height: number,
-  },
-  annotate?: {
-    delay?: number,
   },
 };
 export type PageStartScreencastResult = void;
@@ -2714,18 +2738,14 @@ export type PageVideoStartParams = {
     width: number,
     height: number,
   },
-  annotate?: {
-    delay?: number,
-  },
+  annotate?: AnnotateOptions,
 };
 export type PageVideoStartOptions = {
   size?: {
     width: number,
     height: number,
   },
-  annotate?: {
-    delay?: number,
-  },
+  annotate?: AnnotateOptions,
 };
 export type PageVideoStartResult = {
   artifact: ArtifactChannel,
@@ -4345,24 +4365,25 @@ export interface DebuggerEventTarget {
 }
 export interface DebuggerChannel extends DebuggerEventTarget, EventTargetChannel {
   _type_Debugger: boolean;
-  pause(params?: DebuggerPauseParams, progress?: Progress): Promise<DebuggerPauseResult>;
+  requestPause(params?: DebuggerRequestPauseParams, progress?: Progress): Promise<DebuggerRequestPauseResult>;
   resume(params?: DebuggerResumeParams, progress?: Progress): Promise<DebuggerResumeResult>;
   next(params?: DebuggerNextParams, progress?: Progress): Promise<DebuggerNextResult>;
   runTo(params: DebuggerRunToParams, progress?: Progress): Promise<DebuggerRunToResult>;
 }
 export type DebuggerPausedStateChangedEvent = {
-  pausedDetails: {
+  pausedDetails?: {
     location: {
       file: string,
       line?: number,
       column?: number,
     },
     title: string,
-  }[],
+    stack?: string,
+  },
 };
-export type DebuggerPauseParams = {};
-export type DebuggerPauseOptions = {};
-export type DebuggerPauseResult = void;
+export type DebuggerRequestPauseParams = {};
+export type DebuggerRequestPauseOptions = {};
+export type DebuggerRequestPauseResult = void;
 export type DebuggerResumeParams = {};
 export type DebuggerResumeOptions = {};
 export type DebuggerResumeResult = void;
@@ -4655,18 +4676,17 @@ export type ElectronLaunchParams = {
   locale?: string,
   offline?: boolean,
   recordVideo?: {
-    dir: string,
+    dir?: string,
     size?: {
       width: number,
       height: number,
     },
-    annotate?: {
-      delay?: number,
-    },
+    annotate?: AnnotateOptions,
   },
   strictSelectors?: boolean,
   timezoneId?: string,
   tracesDir?: string,
+  artifactsDir?: string,
   selectorEngines?: SelectorEngine[],
   testIdAttributeName?: string,
 };
@@ -4694,18 +4714,17 @@ export type ElectronLaunchOptions = {
   locale?: string,
   offline?: boolean,
   recordVideo?: {
-    dir: string,
+    dir?: string,
     size?: {
       width: number,
       height: number,
     },
-    annotate?: {
-      delay?: number,
-    },
+    annotate?: AnnotateOptions,
   },
   strictSelectors?: boolean,
   timezoneId?: string,
   tracesDir?: string,
+  artifactsDir?: string,
   selectorEngines?: SelectorEngine[],
   testIdAttributeName?: string,
 };
@@ -5084,14 +5103,12 @@ export type AndroidDeviceLaunchBrowserParams = {
   contrast?: 'no-preference' | 'more' | 'no-override',
   baseURL?: string,
   recordVideo?: {
-    dir: string,
+    dir?: string,
     size?: {
       width: number,
       height: number,
     },
-    annotate?: {
-      delay?: number,
-    },
+    annotate?: AnnotateOptions,
   },
   strictSelectors?: boolean,
   serviceWorkers?: 'allow' | 'block',
@@ -5153,14 +5170,12 @@ export type AndroidDeviceLaunchBrowserOptions = {
   contrast?: 'no-preference' | 'more' | 'no-override',
   baseURL?: string,
   recordVideo?: {
-    dir: string,
+    dir?: string,
     size?: {
       width: number,
       height: number,
     },
-    annotate?: {
-      delay?: number,
-    },
+    annotate?: AnnotateOptions,
   },
   strictSelectors?: boolean,
   serviceWorkers?: 'allow' | 'block',

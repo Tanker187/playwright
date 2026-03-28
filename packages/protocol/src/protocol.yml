@@ -59,6 +59,21 @@ Rect:
     width: float
     height: float
 
+AnnotateOptions:
+  type: object
+  properties:
+    duration: float?
+    position:
+      type: enum?
+      literals:
+      - top-left
+      - top
+      - top-right
+      - bottom-left
+      - bottom
+      - bottom-right
+    fontSize: int?
+
 
 SerializedValue:
   type: object
@@ -592,16 +607,13 @@ ContextOptions:
     recordVideo:
       type: object?
       properties:
-        dir: string
+        dir: string?
         size:
           type: object?
           properties:
             width: int
             height: int
-        annotate:
-          type: object?
-          properties:
-            delay: int?
+        annotate: AnnotateOptions?
     strictSelectors: boolean?
     serviceWorkers:
       type: enum?
@@ -2096,6 +2108,35 @@ Page:
       title: Cancel pick locator
       group: configuration
 
+    overlayShow:
+      title: Show overlay
+      group: configuration
+      parameters:
+        html: string
+        duration: float?
+      returns:
+        id: string
+
+    overlayRemove:
+      title: Remove overlay
+      group: configuration
+      parameters:
+        id: string
+
+    overlayChapter:
+      title: Show chapter overlay
+      group: configuration
+      parameters:
+        title: string
+        description: string?
+        duration: float?
+
+    overlaySetVisible:
+      title: Set overlay visibility
+      group: configuration
+      parameters:
+        visible: boolean
+
     startScreencast:
       title: Start screencast
       group: configuration
@@ -2105,10 +2146,6 @@ Page:
           properties:
             width: int
             height: int
-        annotate:
-          type: object?
-          properties:
-            delay: int?
 
     stopScreencast:
       title: Stop screencast
@@ -2123,10 +2160,7 @@ Page:
           properties:
             width: int
             height: int
-        annotate:
-          type: object?
-          properties:
-            delay: int?
+        annotate: AnnotateOptions?
       returns:
         artifact: Artifact
 
@@ -3867,7 +3901,7 @@ Debugger:
 
   commands:
 
-    pause:
+    requestPause:
       title: Pause on next call
       group: configuration
 
@@ -3895,17 +3929,16 @@ Debugger:
     pausedStateChanged:
       parameters:
         pausedDetails:
-          type: array
-          items:
-            type: object
-            properties:
-              location:
-                type: object
-                properties:
-                  file: string
-                  line: int?
-                  column: int?
-              title: string
+          type: object?
+          properties:
+            location:
+              type: object
+              properties:
+                file: string
+                line: int?
+                column: int?
+            title: string
+            stack: string?
 
 
 Dialog:
@@ -4141,19 +4174,17 @@ Electron:
         recordVideo:
           type: object?
           properties:
-            dir: string
+            dir: string?
             size:
               type: object?
               properties:
                 width: int
                 height: int
-            annotate:
-              type: object?
-              properties:
-                delay: int?
+            annotate: AnnotateOptions?
         strictSelectors: boolean?
         timezoneId: string?
         tracesDir: string?
+        artifactsDir: string?
         selectorEngines:
           type: array?
           items: SelectorEngine

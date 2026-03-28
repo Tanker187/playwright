@@ -2759,6 +2759,10 @@ The page's main frame. Page is guaranteed to have a main frame which persists du
 * since: v1.8
 - type: <[Mouse]>
 
+## property: Page.overlay
+* since: v1.59
+- type: <[Overlay]>
+
 ## method: Page.onceDialog
 * since: v1.10
 * langs: java
@@ -4238,7 +4242,7 @@ Captures the aria snapshot of the page. Read more about [aria snapshots](../aria
 * since: v1.59
 - `mode` <[AriaSnapshotMode]<"ai"|"default">>
 
-When set to `"ai"`, returns a snapshot optimized for AI consumption with element references. Defaults to `"default"`.
+When set to `"ai"`, returns a snapshot optimized for AI consumption: including element references like `[ref=e2]` and snapshots of `<iframe>`s. Defaults to `"default"`.
 
 ### option: Page.ariaSnapshot.timeout = %%-input-timeout-%%
 * since: v1.59

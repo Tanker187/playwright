@@ -2110,8 +2110,8 @@ export interface Page {
     depth?: number;
 
     /**
-     * When set to `"ai"`, returns a snapshot optimized for AI consumption with element references. Defaults to
-     * `"default"`.
+     * When set to `"ai"`, returns a snapshot optimized for AI consumption: including element references like `[ref=e2]`
+     * and snapshots of `<iframe>`s. Defaults to `"default"`.
      */
     mode?: "ai"|"default";
 
@@ -5277,6 +5277,8 @@ export interface Page {
   keyboard: Keyboard;
 
   mouse: Mouse;
+
+  overlay: Overlay;
 
   /**
    * API testing helper associated with this page. This method returns the same instance as
@@ -10174,9 +10176,10 @@ export interface Browser {
      */
     recordVideo?: {
       /**
-       * Path to the directory to put videos into.
+       * Path to the directory to put videos into. If not specified, the videos will be stored in `artifactsDir` (see
+       * [browserType.launch([options])](https://playwright.dev/docs/api/class-browsertype#browser-type-launch) options).
        */
-      dir: string;
+      dir?: string;
 
       /**
        * Optional dimensions of the recorded videos. If not specified the size will be equal to `viewport` scaled down to
@@ -10202,7 +10205,17 @@ export interface Browser {
         /**
          * How long each annotation is displayed in milliseconds. Defaults to `500`.
          */
-        delay?: number;
+        duration?: number;
+
+        /**
+         * Position of the action title overlay. Defaults to `"top-right"`.
+         */
+        position?: "top-left"|"top"|"top-right"|"bottom-left"|"bottom"|"bottom-right";
+
+        /**
+         * Font size of the action title in pixels. Defaults to `24`.
+         */
+        fontSize?: number;
       };
     };
 
@@ -12767,6 +12780,11 @@ export interface Locator {
    *     - link "About"
    * ```
    *
+   * An AI-optimized snapshot, controlled by
+   * [`mode`](https://playwright.dev/docs/api/class-locator#locator-aria-snapshot-option-mode), is different from a
+   * default snapshot:
+   * 1. Includes element references `[ref=e2]`. 2. Does not wait for an element matching the locator, and throws when
+   *    no elements match. 3. Includes snapshots of `<iframe>`s inside the target.
    * @param options
    */
   ariaSnapshot(options?: {
@@ -12776,8 +12794,8 @@ export interface Locator {
     depth?: number;
 
     /**
-     * When set to `"ai"`, returns a snapshot optimized for AI consumption with element references. Defaults to
-     * `"default"`.
+     * When set to `"ai"`, returns a snapshot optimized for AI consumption. Defaults to `"default"`. See details for more
+     * information.
      */
     mode?: "ai"|"default";
 
@@ -15457,9 +15475,10 @@ export interface BrowserType<Unused = {}> {
      */
     recordVideo?: {
       /**
-       * Path to the directory to put videos into.
+       * Path to the directory to put videos into. If not specified, the videos will be stored in `artifactsDir` (see
+       * [browserType.launch([options])](https://playwright.dev/docs/api/class-browsertype#browser-type-launch) options).
        */
-      dir: string;
+      dir?: string;
 
       /**
        * Optional dimensions of the recorded videos. If not specified the size will be equal to `viewport` scaled down to
@@ -15485,7 +15504,17 @@ export interface BrowserType<Unused = {}> {
         /**
          * How long each annotation is displayed in milliseconds. Defaults to `500`.
          */
-        delay?: number;
+        duration?: number;
+
+        /**
+         * Position of the action title overlay. Defaults to `"top-right"`.
+         */
+        position?: "top-left"|"top"|"top-right"|"bottom-left"|"bottom"|"bottom-right";
+
+        /**
+         * Font size of the action title in pixels. Defaults to `24`.
+         */
+        fontSize?: number;
       };
     };
 
@@ -16179,6 +16208,11 @@ export interface Screencast {
     preferredSize?: {
       width: number;
       height: number;
+    };
+    annotate?: {
+      duration?: number;
+      position?: 'top-left' | 'top' | 'top-right' | 'bottom-left' | 'bottom' | 'bottom-right';
+      fontSize?: number;
     };
   }): Promise<Disposable>;
   /**
@@ -17330,9 +17364,10 @@ export interface AndroidDevice {
      */
     recordVideo?: {
       /**
-       * Path to the directory to put videos into.
+       * Path to the directory to put videos into. If not specified, the videos will be stored in `artifactsDir` (see
+       * [browserType.launch([options])](https://playwright.dev/docs/api/class-browsertype#browser-type-launch) options).
        */
-      dir: string;
+      dir?: string;
 
       /**
        * Optional dimensions of the recorded videos. If not specified the size will be equal to `viewport` scaled down to
@@ -17358,7 +17393,17 @@ export interface AndroidDevice {
         /**
          * How long each annotation is displayed in milliseconds. Defaults to `500`.
          */
-        delay?: number;
+        duration?: number;
+
+        /**
+         * Position of the action title overlay. Defaults to `"top-right"`.
+         */
+        position?: "top-left"|"top"|"top-right"|"bottom-left"|"bottom"|"bottom-right";
+
+        /**
+         * Font size of the action title in pixels. Defaults to `24`.
+         */
+        fontSize?: number;
       };
     };
 
@@ -19489,23 +19534,9 @@ export interface Debugger {
   next(): Promise<void>;
 
   /**
-   * Configures the debugger to pause before the next action is executed.
-   *
-   * Throws if the debugger is already paused. Use
-   * [debugger.next()](https://playwright.dev/docs/api/class-debugger#debugger-next) or
-   * [debugger.runTo(location)](https://playwright.dev/docs/api/class-debugger#debugger-run-to) to step while paused.
-   *
-   * Note that [page.pause()](https://playwright.dev/docs/api/class-page#page-pause) is equivalent to a "debugger"
-   * statement — it pauses execution at the call site immediately. On the contrary,
-   * [debugger.pause()](https://playwright.dev/docs/api/class-debugger#debugger-pause) is equivalent to "pause on next
-   * statement" — it configures the debugger to pause before the next action is executed.
+   * Returns details about the currently paused call. Returns `null` if the debugger is not paused.
    */
-  pause(): Promise<void>;
-
-  /**
-   * Returns details about the currently paused calls. Returns an empty array if the debugger is not paused.
-   */
-  pausedDetails(): Array<{
+  pausedDetails(): null|{
     location: {
       file: string;
 
@@ -19515,7 +19546,21 @@ export interface Debugger {
     };
 
     title: string;
-  }>;
+  };
+
+  /**
+   * Configures the debugger to pause before the next action is executed.
+   *
+   * Throws if the debugger is already paused. Use
+   * [debugger.next()](https://playwright.dev/docs/api/class-debugger#debugger-next) or
+   * [debugger.runTo(location)](https://playwright.dev/docs/api/class-debugger#debugger-run-to) to step while paused.
+   *
+   * Note that [page.pause()](https://playwright.dev/docs/api/class-page#page-pause) is equivalent to a "debugger"
+   * statement — it pauses execution at the call site immediately. On the contrary,
+   * [debugger.requestPause()](https://playwright.dev/docs/api/class-debugger#debugger-request-pause) is equivalent to
+   * "pause on next statement" — it configures the debugger to pause before the next action is executed.
+   */
+  requestPause(): Promise<void>;
 
   /**
    * Resumes script execution. Throws if the debugger is not paused.
@@ -19773,6 +19818,13 @@ export interface Electron {
     args?: Array<string>;
 
     /**
+     * If specified, artifacts (traces, videos, downloads, HAR files, etc.) are saved into this directory. The directory
+     * is not cleaned up when the browser closes. If not specified, a temporary directory is used and cleaned up when the
+     * browser closes.
+     */
+    artifactsDir?: string;
+
+    /**
      * Toggles bypassing page's Content-Security-Policy. Defaults to `false`.
      */
     bypassCSP?: boolean;
@@ -19920,9 +19972,10 @@ export interface Electron {
      */
     recordVideo?: {
       /**
-       * Path to the directory to put videos into.
+       * Path to the directory to put videos into. If not specified, the videos will be stored in `artifactsDir` (see
+       * [browserType.launch([options])](https://playwright.dev/docs/api/class-browsertype#browser-type-launch) options).
        */
-      dir: string;
+      dir?: string;
 
       /**
        * Optional dimensions of the recorded videos. If not specified the size will be equal to `viewport` scaled down to
@@ -19948,7 +20001,17 @@ export interface Electron {
         /**
          * How long each annotation is displayed in milliseconds. Defaults to `500`.
          */
-        delay?: number;
+        duration?: number;
+
+        /**
+         * Position of the action title overlay. Defaults to `"top-right"`.
+         */
+        position?: "top-left"|"top"|"top-right"|"bottom-left"|"bottom"|"bottom-right";
+
+        /**
+         * Font size of the action title in pixels. Defaults to `24`.
+         */
+        fontSize?: number;
       };
     };
 
@@ -20861,6 +20924,49 @@ export interface Mouse {
    * @param deltaY Pixels to scroll vertically.
    */
   wheel(deltaX: number, deltaY: number): Promise<void>;
+}
+
+/**
+ * Interface for managing page overlays that display persistent visual indicators on top of the page.
+ */
+export interface Overlay {
+  /**
+   * Shows a chapter overlay with a title and optional description, centered on the page with a blurred backdrop. Useful
+   * for narrating video recordings. The overlay is removed after the specified duration, or 2000ms.
+   * @param title Title text displayed prominently in the overlay.
+   * @param options
+   */
+  chapter(title: string, options?: {
+    /**
+     * Optional description text displayed below the title.
+     */
+    description?: string;
+
+    /**
+     * Duration in milliseconds after which the overlay is automatically removed. Defaults to `2000`.
+     */
+    duration?: number;
+  }): Promise<void>;
+
+  /**
+   * Sets visibility of all overlays without removing them.
+   * @param visible Whether overlays should be visible.
+   */
+  setVisible(visible: boolean): Promise<void>;
+
+  /**
+   * Adds an overlay with the given HTML content. The overlay is displayed on top of the page until removed. Returns a
+   * disposable that removes the overlay when disposed.
+   * @param html HTML content for the overlay.
+   * @param options
+   */
+  show(html: string, options?: {
+    /**
+     * Duration in milliseconds after which the overlay is automatically removed. Overlay stays until dismissed if not
+     * provided.
+     */
+    duration?: number;
+  }): Promise<Disposable>;
 }
 
 /**
@@ -22057,7 +22163,17 @@ export interface Video {
       /**
        * How long each annotation is displayed in milliseconds. Defaults to `500`.
        */
-      delay?: number;
+      duration?: number;
+
+      /**
+       * Position of the action title overlay. Defaults to `"top-right"`.
+       */
+      position?: "top-left"|"top"|"top-right"|"bottom-left"|"bottom"|"bottom-right";
+
+      /**
+       * Font size of the action title in pixels. Defaults to `24`.
+       */
+      fontSize?: number;
     };
 
     /**
@@ -22945,9 +23061,10 @@ export interface BrowserContextOptions {
    */
   recordVideo?: {
     /**
-     * Path to the directory to put videos into.
+     * Path to the directory to put videos into. If not specified, the videos will be stored in `artifactsDir` (see
+     * [browserType.launch([options])](https://playwright.dev/docs/api/class-browsertype#browser-type-launch) options).
      */
-    dir: string;
+    dir?: string;
 
     /**
      * Optional dimensions of the recorded videos. If not specified the size will be equal to `viewport` scaled down to
@@ -22973,7 +23090,17 @@ export interface BrowserContextOptions {
       /**
        * How long each annotation is displayed in milliseconds. Defaults to `500`.
        */
-      delay?: number;
+      duration?: number;
+
+      /**
+       * Position of the action title overlay. Defaults to `"top-right"`.
+       */
+      position?: "top-left"|"top"|"top-right"|"bottom-left"|"bottom"|"bottom-right";
+
+      /**
+       * Font size of the action title in pixels. Defaults to `24`.
+       */
+      fontSize?: number;
     };
   };
 
