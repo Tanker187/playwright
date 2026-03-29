@@ -503,7 +503,7 @@ test.describe('browser', () => {
       cert: fs.readFileSync(asset('client-certificates/server/server_cert.pem')),
       ca: [fs.readFileSync(asset('client-certificates/server/server_cert.pem'))],
       requestCert: false, // Initially don't request client cert
-      rejectUnauthorized: false,
+      // Use default rejectUnauthorized: true to validate certificates
       // TLSv1.3 does not support renegotiation
       minVersion: 'TLSv1.2',
       maxVersion: 'TLSv1.2',
@@ -514,8 +514,7 @@ test.describe('browser', () => {
         return;
       const renegotiate = () => new Promise<void>((resolve, reject) => {
         (req.socket as tls.TLSSocket).renegotiate({
-          requestCert: true,
-          rejectUnauthorized: false
+          requestCert: true
         }, err => {
           if (err)
             reject(err);
