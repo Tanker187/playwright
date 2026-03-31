@@ -36,8 +36,8 @@ import { parseEvaluationResultValue } from '../utils/isomorphic/utilityScriptSer
 import { compressCallLog } from './callLog';
 import * as rawBindingsControllerSource from '../generated/bindingsControllerSource';
 import { Overlay } from './overlay';
-import { Screencast } from './screencast';
 import { NonRecoverableDOMError } from './dom';
+import { Screencast } from './screencast';
 
 import type { Artifact } from './artifact';
 import type { BrowserContextEventMap } from './browserContext';
@@ -85,8 +85,8 @@ export interface PageDelegate {
   getBoundingBox(handle: dom.ElementHandle): Promise<types.Rect | null>;
   getFrameElement(frame: frames.Frame): Promise<dom.ElementHandle>;
   scrollRectIntoViewIfNeeded(handle: dom.ElementHandle, rect?: types.Rect): Promise<'error:notvisible' | 'error:notconnected' | 'done'>;
-  startScreencast(options: { width: number, height: number, quality: number }): Promise<void>;
-  stopScreencast(): Promise<void>;
+  startScreencast(options: { width: number, height: number, quality: number }): void;
+  stopScreencast(): void;
 
   pdf?: (options: channels.PagePdfParams) => Promise<Buffer>;
   coverage?: () => any;
@@ -790,9 +790,14 @@ export class Page extends SdkObject<PageEventMap> {
   async close(options: { runBeforeUnload?: boolean, reason?: string } = {}) {
     if (this._closedState === 'closed')
       return;
+
     if (options.reason)
       this._closeReason = options.reason;
     const runBeforeUnload = !!options.runBeforeUnload;
+
+    if (!runBeforeUnload)
+      await this.screencast.handlePageOrContextClose();
+
     if (this._closedState !== 'closing') {
       // If runBeforeUnload is true, we don't know if we will close, so don't modify the state
       if (!runBeforeUnload)

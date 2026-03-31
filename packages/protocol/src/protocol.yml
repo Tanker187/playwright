@@ -2137,22 +2137,8 @@ Page:
       parameters:
         visible: boolean
 
-    startScreencast:
+    screencastStart:
       title: Start screencast
-      group: configuration
-      parameters:
-        preferredSize:
-          type: object?
-          properties:
-            width: int
-            height: int
-
-    stopScreencast:
-      title: Stop screencast
-      group: configuration
-
-    videoStart:
-      title: Start video recording
       group: configuration
       parameters:
         size:
@@ -2160,12 +2146,15 @@ Page:
           properties:
             width: int
             height: int
+        quality: int?
+        sendFrames: boolean?
+        record: boolean?
         annotate: AnnotateOptions?
       returns:
-        artifact: Artifact
+        artifact: Artifact?
 
-    videoStop:
-      title: Stop video recording
+    screencastStop:
+      title: Stop screencast
       group: configuration
 
     updateSubscription:
