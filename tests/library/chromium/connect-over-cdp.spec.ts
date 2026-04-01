@@ -358,9 +358,6 @@ test('should connect via https', async ({ browserType, httpsServer, mode }, test
     res.writeHead(200);
     res.end(json);
   });
-  const oldValue = process.env['NODE_TLS_REJECT_UNAUTHORIZED'];
-  // https://stackoverflow.com/a/21961005/552185
-  process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = '0';
   suppressCertificateWarning();
   try {
     const cdpBrowser = await browserType.connectOverCDP(`https://localhost:${httpsServer.PORT}/`);
@@ -370,7 +367,6 @@ test('should connect via https', async ({ browserType, httpsServer, mode }, test
       await contexts[0].newPage();
     await cdpBrowser.close();
   } finally {
-    process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = oldValue;
     await browserServer.close();
   }
 });
