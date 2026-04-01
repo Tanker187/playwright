@@ -86,14 +86,28 @@ test('install command should work with mirror that uses chunked encoding', async
   const server = http.createServer(async (req, res) => {
     try {
       const upstreamURL = new URL(req.url || '/', 'https://cdn.playwright.dev');
-      // Basic validation to avoid forwarding unsafe paths.
+      // Stricter validation to avoid forwarding unsafe or unexpected paths.
       const normalizedPath = upstreamURL.pathname;
-      if (!normalizedPath.startsWith('/') || normalizedPath.includes('..')) {
+      const hasInvalidTraversal = normalizedPath.includes('..');
+      const hasBackslash = normalizedPath.includes('\\');
+      const isAbsolutePath = normalizedPath.startsWith('/');
+      if (!isAbsolutePath || hasInvalidTraversal || hasBackslash) {
         res.statusCode = 400;
         res.end('Bad request');
         return;
       }
-      const upstream = await fetch(upstreamURL.toString());
+      // Optionally, only allow paths under known prefixes used by Playwright CDN.
+      // This keeps behavior for tests but avoids turning this into a generic proxy.
+      const allowedPrefixes = ['/', '/builds/'];
+      if (!allowedPrefixes.some(prefix => normalizedPath.startsWith(prefix))) {
+        res.statusCode = 400;
+        res.end('Bad request');
+        return;
+      }
+      // Ensure fragment is not forwarded even if present in the original URL.
+      upstreamURL.hash = '';
+      const safeUpstreamURL = 'https://cdn.playwright.dev' + normalizedPath + (upstreamURL.search || '');
+      const upstream = await fetch(safeUpstreamURL);
       const headers = new Headers(upstream.headers);
       headers.delete('content-length');
       res.writeHead(upstream.status, Object.fromEntries(headers));
