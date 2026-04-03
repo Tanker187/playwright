@@ -149,7 +149,7 @@ export class FFPage implements PageDelegate {
       worldName = 'main';
     const context = new dom.FrameExecutionContext(delegate, frame, worldName);
     if (worldName)
-      frame._contextCreated(worldName, context);
+      frame.contextCreated(worldName, context);
     this._contextIdToContext.set(executionContextId, context);
   }
 
@@ -159,7 +159,7 @@ export class FFPage implements PageDelegate {
     if (!context)
       return;
     this._contextIdToContext.delete(executionContextId);
-    context.frame._contextDestroyed(context);
+    context.frame.contextDestroyed(context);
   }
 
   _onExecutionContextsCleared() {
@@ -510,7 +510,7 @@ export class FFPage implements PageDelegate {
     return result.quads.map(quad => [quad.p1, quad.p2, quad.p3, quad.p4]);
   }
 
-  async setInputFilePaths(handle: dom.ElementHandle<HTMLInputElement>, files: string[]): Promise<void> {
+  async setInputFilePaths(progress: Progress, handle: dom.ElementHandle<HTMLInputElement>, files: string[]): Promise<void> {
     await this._session.send('Page.setFileInputFiles', {
       frameId: handle._context.frame._id,
       objectId: handle._objectId,
@@ -544,7 +544,7 @@ export class FFPage implements PageDelegate {
     const parent = frame.parentFrame();
     if (!parent)
       throw new Error('Frame has been detached.');
-    const context = await parent._mainContext();
+    const context = await parent.mainContext();
     const result = await this._session.send('Page.adoptNode', {
       frameId: frame._id,
       executionContextId: (context.delegate as FFExecutionContext)._executionContextId

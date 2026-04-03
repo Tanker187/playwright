@@ -25,6 +25,7 @@ import { syncLocalStorageWithSettings } from '../../launchApp';
 import { launchApp } from '../../launchApp';
 import { createPlaywright } from '../../playwright';
 import { ProgressController } from '../../progress';
+import { nullProgress } from '../../progress';
 
 import type { Transport } from '../../utils/httpServer';
 import type { BrowserType } from '../../browserType';
@@ -184,7 +185,7 @@ export async function openTraceViewerApp(url: string, browserName: string, optio
 
   const controller = new ProgressController();
   await controller.run(async progress => {
-    await context._browser._defaultContext!._loadDefaultContextAsIs(progress);
+    await context._browser._defaultContext!.loadDefaultContextAsIs(progress);
 
     if (process.env.PWTEST_PRINT_WS_ENDPOINT) {
       // eslint-disable-next-line no-restricted-properties
@@ -195,7 +196,7 @@ export async function openTraceViewerApp(url: string, browserName: string, optio
       await syncLocalStorageWithSettings(page, 'traceviewer');
 
     if (isUnderTest())
-      page.on('close', () => context.close({ reason: 'Trace viewer closed' }).catch(() => {}));
+      page.on('close', () => context.close(nullProgress, { reason: 'Trace viewer closed' }).catch(() => {}));
 
     await page.mainFrame().goto(progress, url);
   });

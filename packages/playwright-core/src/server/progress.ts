@@ -50,10 +50,6 @@ export class ProgressController {
     });
   }
 
-  static runInternalTask(task: (progress: Progress) => Promise<void>, timeout?: number) {
-    const progress = new ProgressController();
-    return progress.run(task, timeout);
-  }
 
   async abort(error: Error) {
     if (this._state === 'running') {
@@ -148,3 +144,26 @@ export async function raceUncancellableOperationWithCleanup<T>(progress: Progres
     throw error;
   }
 }
+
+export const nullProgress: Progress = {
+  timeout: 0,
+  deadline: 0,
+  disableTimeout() { },
+  log() { },
+  race<T>(promise: Promise<T> | Promise<T>[]) {
+    const promises = Array.isArray(promise) ? promise : [promise];
+    return Promise.race(promises);
+  },
+  wait: async (timeout: number) => await new Promise<void>(f => setTimeout(f, timeout)),
+  signal: new AbortController().signal,
+  metadata: {
+    id: '',
+    startTime: 0,
+    endTime: 0,
+    type: '',
+    method: '',
+    params: {},
+    log: [],
+    internal: true,
+  }
+};

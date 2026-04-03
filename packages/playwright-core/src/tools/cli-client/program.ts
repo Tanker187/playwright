@@ -22,7 +22,7 @@ import { execSync, spawn } from 'child_process';
 import crypto from 'crypto';
 import os from 'os';
 import path from 'path';
-import { createClientInfo, explicitSessionName, Registry, resolveSessionName } from './registry';
+import { clientKey, createClientInfo, explicitSessionName, Registry, resolveSessionName } from './registry';
 import { Session, renderResolvedConfig } from './session';
 import { serverRegistry } from '../../serverRegistry';
 import { minimist } from './minimist';
@@ -33,21 +33,28 @@ import type { MinimistArgs } from './minimist';
 
 type GlobalOptions = {
   help?: boolean;
+  raw?: boolean;
   session?: string;
   version?: boolean;
 };
 
-type OpenOptions = {
+type AttachOptions = {
+  config?: string;
+  cdp?: string;
   endpoint?: string;
+  extension?: boolean | string;
+};
+
+type OpenOptions = {
   browser?: string;
   config?: string;
-  extension?: boolean;
   headed?: boolean;
   persistent?: boolean;
   profile?: string;
 };
 
-const globalOptions: (keyof (GlobalOptions & OpenOptions))[] = [
+const globalOptions: (keyof (GlobalOptions & OpenOptions & AttachOptions))[] = [
+  'cdp',
   'endpoint',
   'browser',
   'config',
@@ -56,13 +63,15 @@ const globalOptions: (keyof (GlobalOptions & OpenOptions))[] = [
   'help',
   'persistent',
   'profile',
+  'raw',
   'session',
   'version',
 ];
 
-const booleanOptions: (keyof (GlobalOptions & OpenOptions & { all?: boolean }))[] = [
+const booleanOptions: (keyof (GlobalOptions & OpenOptions & AttachOptions & { all?: boolean }))[] = [
   'all',
   'help',
+  'raw',
   'version',
 ];
 
@@ -137,9 +146,18 @@ export async function program(options?: { embedderVersion?: string}) {
       return;
     }
     case 'attach': {
-      const attachTarget = args._[1];
-      const attachSessionName = explicitSessionName(args.session as string) ?? attachTarget;
-      args.endpoint = attachTarget;
+      const attachTarget = args._[1] as string | undefined;
+      if (attachTarget && (args.cdp || args.endpoint || args.extension)) {
+        console.error(`Error: cannot use target name with --cdp, --endpoint, or --extension`);
+        process.exit(1);
+      }
+      if (attachTarget)
+        args.endpoint = attachTarget;
+      if (typeof args.extension === 'string') {
+        args.browser = args.extension;
+        args.extension = true;
+      }
+      const attachSessionName = explicitSessionName(args.session as string) ?? attachTarget ?? sessionName;
       args.session = attachSessionName;
       await startSession(attachSessionName, registry, clientInfo, args);
       return;
@@ -192,10 +210,11 @@ async function startSession(sessionName: string, registry: Registry, clientInfo:
 }
 
 async function runInSession(entry: SessionFile, clientInfo: ClientInfo, args: MinimistArgs) {
+  const raw = !!args.raw;
   for (const globalOption of globalOptions)
     delete args[globalOption];
   const session = new Session(entry);
-  const result = await session.run(clientInfo, args);
+  const result = await session.run(clientInfo, args, { raw });
   console.log(result.text);
 }
 
@@ -231,7 +250,7 @@ async function killAllDaemons(): Promise<void> {
       const result = execSync(
           `powershell -NoProfile -NonInteractive -Command `
           + `"Get-CimInstance Win32_Process `
-          + `| Where-Object { $_.CommandLine -like '*run-mcp-server*' -or $_.CommandLine -like '*run-cli-server*' -or $_.CommandLine -like '*cli-daemon*' } `
+          + `| Where-Object { $_.CommandLine -like '*run-mcp-server*' -or $_.CommandLine -like '*run-cli-server*' -or $_.CommandLine -like '*cli-daemon*' -or $_.CommandLine -like '*dashboardApp.js*' } `
           + `| ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue; $_.ProcessId }"`,
           { encoding: 'utf-8' }
       );
@@ -245,7 +264,7 @@ async function killAllDaemons(): Promise<void> {
       const result = execSync('ps aux', { encoding: 'utf-8' });
       const lines = result.split('\n');
       for (const line of lines) {
-        if (line.includes('run-mcp-server') || line.includes('run-cli-server') || line.includes('cli-daemon')) {
+        if (line.includes('run-mcp-server') || line.includes('run-cli-server') || line.includes('cli-daemon') || line.includes('dashboardApp.js')) {
           const parts = line.trim().split(/\s+/);
           const pid = parts[1];
           if (pid && /^\d+$/.test(pid)) {
@@ -276,21 +295,22 @@ async function listSessions(registry: Registry, clientInfo: ClientInfo, all: boo
   let count = 0;
   const runningSessions = new Set<string>();
   const entries = registry.entryMap();
-  for (const [workspace, list] of entries) {
-    if (!all && workspace !== clientInfo.workspaceDir)
+  const key = clientKey(clientInfo);
+  for (const [workspaceKey, list] of entries) {
+    if (!all && workspaceKey !== key)
       continue;
-    count += await gcAndPrintSessions(clientInfo, list.map(entry => new Session(entry)), all ? `${path.relative(process.cwd(), workspace) || '/'}:` : undefined, runningSessions);
+    count += await gcAndPrintSessions(clientInfo, list.map(entry => new Session(entry)), all ? `${path.relative(process.cwd(), workspaceKey) || '/'}:` : undefined, runningSessions);
   }
 
   // Filter out server entries that already have an attached session.
   const serverEntries = await serverRegistry.list();
   const filteredServerEntries = new Map<string, BrowserStatus[]>();
-  for (const [workspace, list] of serverEntries) {
-    if (!all && workspace !== clientInfo.workspaceDir)
+  for (const [workspaceKey, list] of serverEntries) {
+    if (!all && workspaceKey !== key)
       continue;
     const unattached = list.filter(d => !runningSessions.has(d.title));
     if (unattached.length)
-      filteredServerEntries.set(workspace, unattached);
+      filteredServerEntries.set(workspaceKey, unattached);
   }
 
   if (filteredServerEntries.size) {
@@ -298,8 +318,8 @@ async function listSessions(registry: Registry, clientInfo: ClientInfo, all: boo
       console.log('');
     console.log('### Browser servers available for attach');
   }
-  for (const [workspace, list] of filteredServerEntries)
-    count += await gcAndPrintBrowserSessions(workspace, list);
+  for (const [workspaceKey, list] of filteredServerEntries)
+    count += await gcAndPrintBrowserSessions(workspaceKey, list);
 
   if (!count)
     console.log('  (no browsers)');

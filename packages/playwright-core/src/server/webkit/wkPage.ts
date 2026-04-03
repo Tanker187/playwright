@@ -21,7 +21,6 @@ import { eventsHelper } from '../utils/eventsHelper';
 import { hostPlatform } from '../utils/hostPlatform';
 import { splitErrorMessage } from '../../utils/isomorphic/stackTrace';
 import { PNG, jpegjs } from '../../utilsBundle';
-import { calculateUserAgentEmulation } from '../browserContext';
 import * as dialog from '../dialog';
 import * as dom from '../dom';
 import { TargetClosedError } from '../errors';
@@ -37,6 +36,7 @@ import { WKWorkers } from './wkWorkers';
 import { translatePathToWSL } from './webkit';
 import { registry } from '../registry';
 import { startAutomaticVideoRecording } from '../videoRecorder';
+import { nullProgress } from '../progress';
 
 import type { Protocol } from './protocol';
 import type { WKBrowserContext } from './wkBrowser';
@@ -196,7 +196,7 @@ export class WKPage implements PageDelegate {
     const bootstrapScript = this._calculateBootstrapScript();
     if (bootstrapScript.length)
       promises.push(session.send('Page.setBootstrapScript', { source: bootstrapScript }));
-    this._page.frames().map(frame => frame.evaluateExpression(bootstrapScript).catch(e => {}));
+    this._page.frames().map(frame => frame.evaluateExpression(nullProgress, bootstrapScript).catch(e => {}));
     if (contextOptions.bypassCSP)
       promises.push(session.send('Page.setBypassCSP', { enabled: true }));
     const emulatedSize = this._page.emulatedSize();
@@ -487,7 +487,7 @@ export class WKPage implements PageDelegate {
       if (context.frame === frame) {
         this._contextIdToContext.delete(contextId);
         if (notifyFrame)
-          frame._contextDestroyed(context);
+          frame.contextDestroyed(context);
       }
     }
   }
@@ -506,7 +506,7 @@ export class WKPage implements PageDelegate {
       worldName = 'utility';
     const context = new dom.FrameExecutionContext(delegate, frame, worldName);
     if (worldName)
-      frame._contextCreated(worldName, context);
+      frame.contextCreated(worldName, context);
     this._contextIdToContext.set(contextPayload.id, context);
   }
 
@@ -619,7 +619,7 @@ export class WKPage implements PageDelegate {
   private async _onFileChooserOpened(event: {frameId: Protocol.Network.FrameId, element: Protocol.Runtime.RemoteObject}) {
     let handle;
     try {
-      const context = await this._page.frameManager.frame(event.frameId)!._mainContext();
+      const context = await this._page.frameManager.frame(event.frameId)!.mainContext();
       handle =  createHandle(context, event.element).asElement()!;
     } catch (e) {
       // During async processing, frame/context may go away. We should not throw.
@@ -693,8 +693,6 @@ export class WKPage implements PageDelegate {
   async updateUserAgent(): Promise<void> {
     const contextOptions = this._browserContext._options;
     this._updateState('Page.overrideUserAgent', { value: contextOptions.userAgent });
-    const { navigatorPlatform } = calculateUserAgentEmulation(contextOptions);
-    this._updateState('Page.overridePlatform', navigatorPlatform ? { value: navigatorPlatform } : { });
   }
 
   async bringToFront(): Promise<void> {
@@ -974,7 +972,7 @@ export class WKPage implements PageDelegate {
     ]);
   }
 
-  async setInputFilePaths(handle: dom.ElementHandle<HTMLInputElement>, paths: string[]): Promise<void> {
+  async setInputFilePaths(progress: Progress, handle: dom.ElementHandle<HTMLInputElement>, paths: string[]): Promise<void> {
     const pageProxyId = this._pageProxySession.sessionId;
     const objectId = handle._objectId;
     if (this._browserContext._browser?.options.channel === 'webkit-wsl')
@@ -1005,7 +1003,7 @@ export class WKPage implements PageDelegate {
     const parent = frame.parentFrame();
     if (!parent)
       throw new Error('Frame has been detached.');
-    const context = await parent._mainContext();
+    const context = await parent.mainContext();
     const result = await this._session.send('DOM.resolveNode', {
       frameId: frame._id,
       executionContextId: (context.delegate as WKExecutionContext)._contextId

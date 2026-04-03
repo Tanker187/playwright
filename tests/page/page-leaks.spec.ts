@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { nullProgress } from '../../packages/playwright-core/lib/server/progress';
 import { MultiMap } from '../../packages/playwright-core/lib/utils/isomorphic/multimap';
 import { test, expect } from './pageTest';
 
@@ -43,7 +44,7 @@ function leakedJSHandles(): string {
 
 async function weakRefObjects(pageImpl: any, selector: string) {
   for (const world of ['main', 'utility']) {
-    const context = await pageImpl.mainFrame()._context(world);
+    const context = await pageImpl.mainFrame().context(world);
     await context.evaluate(selector => {
       const elements = document.querySelectorAll(selector);
       globalThis.weakRefs = globalThis.weakRefs || [];
@@ -56,8 +57,8 @@ async function weakRefObjects(pageImpl: any, selector: string) {
 async function weakRefCount(pageImpl): Promise<{ main: number, utility: number }> {
   const result = { main: 0, utility: 0 };
   for (const world of ['main', 'utility']) {
-    await pageImpl.requestGC();
-    const context = await pageImpl.mainFrame()._context(world);
+    await pageImpl.requestGC(nullProgress);
+    const context = await pageImpl.mainFrame().context(world);
     result[world] = await context.evaluate(() => globalThis.weakRefs.filter(r => !!r.deref()).length);
   }
   return result;
