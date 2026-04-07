@@ -19,6 +19,7 @@ import os from 'os';
 import path from 'path';
 import * as readline from 'readline';
 
+import { libPath } from '../../package';
 import { ManualPromise } from '../../utils';
 import { wrapInASCIIBox } from '../utils/ascii';
 import { RecentLogsCollector } from '../utils/debugLogger';
@@ -140,11 +141,11 @@ export class ElectronApplication extends SdkObject {
   async browserWindow(progress: Progress, page: Page): Promise<js.JSHandle<BrowserWindow>> {
     // Assume CRPage as Electron is always Chromium.
     const targetId = (page.delegate as CRPage)._targetId;
-    const electronHandle = await this._nodeElectronHandlePromise;
-    return await electronHandle.evaluateHandle(({ BrowserWindow, webContents }, targetId) => {
+    const electronHandle = await progress.race(this._nodeElectronHandlePromise);
+    return await progress.race(electronHandle.evaluateHandle(({ BrowserWindow, webContents }, targetId) => {
       const wc = webContents.fromDevToolsTargetId(targetId);
       return BrowserWindow.fromWebContents(wc!)!;
-    }, targetId);
+    }, targetId));
   }
 }
 
@@ -194,7 +195,7 @@ export class Electron extends SdkObject {
       }
       // Only use our own loader for non-packaged apps.
       // Packaged apps might have their own command line handling.
-      electronArguments.unshift('-r', require.resolve('./loader'));
+      electronArguments.unshift('-r', libPath('server', 'electron', 'loader.js'));
     }
     let shell = false;
     if (process.platform === 'win32') {
@@ -212,7 +213,7 @@ export class Electron extends SdkObject {
     // will make the debugger attach to Electron's Node. But Playwright
     // also needs to attach to drive the automation. Disable external debugging.
     delete env.NODE_OPTIONS;
-    const { launchedProcess, gracefullyClose, kill } = await launchProcess({
+    const { launchedProcess, gracefullyClose, kill } = await progress.race(launchProcess({
       command,
       args: electronArguments,
       env,
@@ -229,7 +230,7 @@ export class Electron extends SdkObject {
       handleSIGTERM: true,
       handleSIGHUP: true,
       onExit: () => app?.emit(ElectronApplication.Events.Close),
-    });
+    }));
 
     // All waitForLines must be started immediately.
     // Otherwise the lines might come before we are ready.
@@ -257,10 +258,10 @@ export class Electron extends SdkObject {
         nodeTransport.close();
       }).catch(() => {});
 
-      const chromeMatch = await Promise.race([
+      const chromeMatch = await progress.race(Promise.race([
         chromeMatchPromise,
         waitForXserverError,
-      ]);
+      ]));
       const chromeTransport = await WebSocketTransport.connect(progress, chromeMatch[1]);
       const browserProcess: BrowserProcess = {
         onclose: undefined,
@@ -291,7 +292,7 @@ export class Electron extends SdkObject {
       await progress.race(app.initialize());
       return app;
     } catch (error) {
-      await kill();
+      await progress.race(kill());
       throw error;
     }
   }

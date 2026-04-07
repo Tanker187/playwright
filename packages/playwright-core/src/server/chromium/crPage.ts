@@ -314,10 +314,10 @@ export class CRPage implements PageDelegate {
     if (!frame)
       throw new Error('Cannot set input files to detached input element');
     const parentSession = this._sessionForFrame(frame);
-    await parentSession._client.send('DOM.setFileInputFiles', {
+    await progress.race(parentSession._client.send('DOM.setFileInputFiles', {
       objectId: handle._objectId,
       files
-    });
+    }));
   }
 
   async adoptElementHandle<T extends Node>(handle: dom.ElementHandle<T>, to: dom.FrameExecutionContext): Promise<dom.ElementHandle<T>> {
@@ -441,8 +441,13 @@ class FrameSession {
     if (!this._page.isStorageStatePage && hasUIWindow &&
       !this._crPage._browserContext._browser.isClank() &&
       !this._crPage._browserContext._options.noDefaultViewport) {
-      const { windowId } = await this._client.send('Browser.getWindowForTarget');
-      this._windowId = windowId;
+      try {
+        const { windowId } = await this._client.send('Browser.getWindowForTarget');
+        this._windowId = windowId;
+      } catch {
+        // Some pages in Edge, like internal UIs, are mis-classified as "page", but do
+        // not actually have a browser window. That's fine, we won't resize them.
+      }
     }
 
     if (this._isMainFrame() && hasUIWindow && !this._page.isStorageStatePage)
